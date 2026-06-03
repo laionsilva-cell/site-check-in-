@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pré-Check-in Hoteleiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
+    <!-- QR Code Library - Versão Alternativa -->
+    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.js"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -158,7 +159,7 @@
 
     <script>
         // API Base URL
-        const API_BASE = 'http://localhost:3000';
+        const API_BASE = window.location.origin; // Usa a URL atual do servidor
 
         // Elementos do DOM
         const formSection = document.getElementById('formSection');
@@ -251,15 +252,29 @@
             // Limpar container anterior
             qrcodeContainer.innerHTML = '';
 
-            // Gerar QR Code
-            new QRCode(qrcodeContainer, {
-                text: id,
-                width: 250,
-                height: 250,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
+            // Gerar QR Code com verificação de carregamento
+            try {
+                // Verificar se QRCode está disponível
+                if (typeof QRCode === 'undefined') {
+                    throw new Error('Biblioteca QRCode ainda não foi carregada. Tente novamente.');
+                }
+
+                new QRCode(qrcodeContainer, {
+                    text: id,
+                    width: 250,
+                    height: 250,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                console.log('✓ QR Code gerado com sucesso');
+
+            } catch (error) {
+                console.error('Erro ao gerar QR Code:', error);
+                showError(`Erro ao gerar QR Code: ${error.message}`);
+                return;
+            }
 
             // Ocultar formulário e exibir sucesso
             formSection.classList.add('hidden');
@@ -340,6 +355,11 @@
             printWindow.focus();
             setTimeout(() => printWindow.print(), 500);
         }
+
+        // Log de inicialização
+        console.log('✓ Frontend iniciado');
+        console.log('✓ API Base:', API_BASE);
+        console.log('✓ Biblioteca QRCode:', typeof QRCode);
     </script>
 </body>
 </html>
