@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pré-Check-in Hoteleiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- QR Code Library - Versão Alternativa -->
-    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.js"></script>
+    <!-- QR Code Library - usando Goqr.me API -->
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -112,7 +111,9 @@
 
             <!-- Container QR Code -->
             <div class="bg-gray-50 p-6 rounded-lg mb-6 border-2 border-dashed border-gray-300">
-                <div id="qrcodeContainer" class="flex justify-center"></div>
+                <div id="qrcodeContainer" class="flex justify-center">
+                    <img id="qrcodeImage" src="" alt="QR Code" class="w-64 h-64" />
+                </div>
             </div>
 
             <!-- ID de Referência -->
@@ -158,8 +159,8 @@
     </div>
 
     <script>
-        // API Base URL
-        const API_BASE = window.location.origin; // Usa a URL atual do servidor
+        // API Base URL - usar a URL atual do servidor
+        const API_BASE = window.location.origin;
 
         // Elementos do DOM
         const formSection = document.getElementById('formSection');
@@ -168,7 +169,7 @@
         const errorMessage = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const qrcodeContainer = document.getElementById('qrcodeContainer');
+        const qrcodeImage = document.getElementById('qrcodeImage');
         const referenceId = document.getElementById('referenceId');
         const resetBtn = document.getElementById('resetBtn');
         const printBtn = document.getElementById('printBtn');
@@ -184,6 +185,16 @@
 
         // Event Listener - Botão Imprimir
         printBtn.addEventListener('click', printQRCode);
+
+        /**
+         * Gera QR Code usando API externa (goqr.me)
+         * Mais rápido e confiável que bibliotecas JavaScript
+         */
+        function generateQRCodeImage(text, size = 250) {
+            // Usar Google Charts API que é muito confiável
+            const encodedText = encodeURIComponent(text);
+            return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedText}`;
+        }
 
         /**
          * Submete os dados do check-in para o backend
@@ -232,6 +243,7 @@
             } catch (error) {
                 // Exibir erro
                 showError(error.message);
+                console.error('❌ Erro ao processar:', error);
             } finally {
                 // Ocultar indicador de carregamento
                 loadingIndicator.classList.add('hidden');
@@ -242,43 +254,30 @@
          * Exibe a seção de sucesso com QR Code
          */
         function displaySuccess(id, formData) {
-            // Preencher dados confirmados
-            document.getElementById('confirmNome').textContent = formData.nome;
-            document.getElementById('confirmDocumento').textContent = formData.documento;
-            document.getElementById('confirmCelular').textContent = formData.celular;
-            document.getElementById('confirmData').textContent = new Date(formData.dataNascimento).toLocaleDateString('pt-BR');
-            document.getElementById('referenceId').textContent = id;
-
-            // Limpar container anterior
-            qrcodeContainer.innerHTML = '';
-
-            // Gerar QR Code com verificação de carregamento
             try {
-                // Verificar se QRCode está disponível
-                if (typeof QRCode === 'undefined') {
-                    throw new Error('Biblioteca QRCode ainda não foi carregada. Tente novamente.');
-                }
+                // Preencher dados confirmados
+                document.getElementById('confirmNome').textContent = formData.nome;
+                document.getElementById('confirmDocumento').textContent = formData.documento;
+                document.getElementById('confirmCelular').textContent = formData.celular;
+                document.getElementById('confirmData').textContent = new Date(formData.dataNascimento).toLocaleDateString('pt-BR');
+                document.getElementById('referenceId').textContent = id;
 
-                new QRCode(qrcodeContainer, {
-                    text: id,
-                    width: 250,
-                    height: 250,
-                    colorDark: '#000000',
-                    colorLight: '#ffffff',
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+                // Gerar URL do QR Code
+                const qrCodeUrl = generateQRCodeImage(id, 250);
+                qrcodeImage.src = qrCodeUrl;
 
                 console.log('✓ QR Code gerado com sucesso');
+                console.log('✓ ID:', id);
+                console.log('✓ URL:', qrCodeUrl);
+
+                // Ocultar formulário e exibir sucesso
+                formSection.classList.add('hidden');
+                successSection.classList.remove('hidden');
 
             } catch (error) {
-                console.error('Erro ao gerar QR Code:', error);
-                showError(`Erro ao gerar QR Code: ${error.message}`);
-                return;
+                console.error('❌ Erro ao exibir sucesso:', error);
+                showError('Erro ao gerar QR Code: ' + error.message);
             }
-
-            // Ocultar formulário e exibir sucesso
-            formSection.classList.add('hidden');
-            successSection.classList.remove('hidden');
         }
 
         /**
@@ -287,6 +286,7 @@
         function showError(message) {
             errorText.textContent = message;
             errorMessage.classList.remove('hidden');
+            console.error('❌', message);
         }
 
         /**
@@ -303,63 +303,80 @@
          * Imprime o QR Code
          */
         function printQRCode() {
-            const printWindow = window.open('', '', 'height=400,width=600');
-            const qrImage = qrcodeContainer.querySelector('canvas').toDataURL();
-            const id = document.getElementById('referenceId').textContent;
+            try {
+                const printWindow = window.open('', '', 'height=400,width=600');
+                const qrImageSrc = qrcodeImage.src;
+                const id = document.getElementById('referenceId').textContent;
 
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>QR Code - Pré-Check-in</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            padding: 20px;
-                        }
-                        .container {
-                            text-align: center;
-                        }
-                        h1 {
-                            margin-bottom: 20px;
-                            font-size: 24px;
-                        }
-                        img {
-                            margin: 20px 0;
-                            border: 2px solid #000;
-                            padding: 10px;
-                        }
-                        .id {
-                            font-weight: bold;
-                            font-size: 18px;
-                            margin-top: 20px;
-                            font-family: monospace;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>Pré-Check-in Hoteleiro</h1>
-                        <img src="${qrImage}" alt="QR Code">
-                        <p class="id">ID: ${id}</p>
-                        <p>Apresente este código na recepção</p>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => printWindow.print(), 500);
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>QR Code - Pré-Check-in</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 20px;
+                                background: white;
+                            }
+                            .container {
+                                text-align: center;
+                                max-width: 600px;
+                            }
+                            h1 {
+                                margin-bottom: 20px;
+                                font-size: 28px;
+                                color: #333;
+                            }
+                            img {
+                                margin: 20px 0;
+                                border: 2px solid #000;
+                                padding: 10px;
+                                background: white;
+                                max-width: 300px;
+                            }
+                            .id {
+                                font-weight: bold;
+                                font-size: 18px;
+                                margin-top: 20px;
+                                font-family: monospace;
+                                color: #1f2937;
+                            }
+                            .subtitle {
+                                font-size: 14px;
+                                color: #666;
+                                margin-top: 10px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>Pré-Check-in Hoteleiro</h1>
+                            <img src="${qrImageSrc}" alt="QR Code">
+                            <p class="id">ID: ${id}</p>
+                            <p class="subtitle">Apresente este código na recepção</p>
+                        </div>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => printWindow.print(), 500);
+                console.log('✓ Impressão iniciada');
+            } catch (error) {
+                console.error('❌ Erro ao imprimir:', error);
+                showError('Erro ao imprimir QR Code');
+            }
         }
 
-        // Log de inicialização
+        // Verificações de inicialização
         console.log('✓ Frontend iniciado');
-        console.log('✓ API Base:', API_BASE);
-        console.log('✓ Biblioteca QRCode:', typeof QRCode);
+        console.log('✓ API Base URL:', API_BASE);
+        console.log('✓ Pronto para usar');
     </script>
 </body>
 </html>
