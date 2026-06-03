@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,6 +9,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname))); // Servir arquivos estáticos
 
 /**
  * BANCO DE DADOS EM MEMÓRIA
@@ -239,6 +241,13 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
+ * Rota para servir index.html na raiz
+ */
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+/**
  * Iniciar Servidor
  */
 app.listen(PORT, () => {
@@ -251,6 +260,7 @@ app.listen(PORT, () => {
     ╚════════════════════════════════════════════╝
     
     📍 Endpoints disponíveis:
+    ✓ GET    http://localhost:${PORT}/
     ✓ POST   /api/checkin
     ✓ GET    /api/recepcao/consultar/:id
     ✓ POST   /api/recepcao/finalizar/:id
