@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pré-Check-in Hoteleiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- QR Code Library - usando Goqr.me API -->
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
@@ -111,15 +110,13 @@
 
             <!-- Container QR Code -->
             <div class="bg-gray-50 p-6 rounded-lg mb-6 border-2 border-dashed border-gray-300">
-                <div id="qrcodeContainer" class="flex justify-center">
-                    <img id="qrcodeImage" src="" alt="QR Code" class="w-64 h-64" />
-                </div>
+                <img id="qrCodeImage" src="" alt="QR Code" class="w-64 h-64 mx-auto" />
             </div>
 
             <!-- ID de Referência -->
             <div class="bg-blue-50 p-4 rounded-lg mb-6">
                 <p class="text-sm text-gray-600 mb-2">Seu ID de Referência:</p>
-                <p id="referenceId" class="text-xl font-mono font-bold text-indigo-600 break-all"></p>
+                <p id="referenceId" class="text-lg font-mono font-bold text-indigo-600 break-all"></p>
             </div>
 
             <!-- Dados Confirmados -->
@@ -159,53 +156,44 @@
     </div>
 
     <script>
-        // API Base URL - usar a URL atual do servidor
+        // Configuração da API
         const API_BASE = window.location.origin;
 
-        // Elementos do DOM
+        // Elementos DOM
         const formSection = document.getElementById('formSection');
         const successSection = document.getElementById('successSection');
         const checkinForm = document.getElementById('checkinForm');
         const errorMessage = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
         const loadingIndicator = document.getElementById('loadingIndicator');
-        const qrcodeImage = document.getElementById('qrcodeImage');
+        const qrCodeImage = document.getElementById('qrCodeImage');
         const referenceId = document.getElementById('referenceId');
         const resetBtn = document.getElementById('resetBtn');
         const printBtn = document.getElementById('printBtn');
 
-        // Event Listener - Submissão do Formulário
-        checkinForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await submitCheckin();
-        });
-
-        // Event Listener - Botão Novo Check-in
+        // Event Listeners
+        checkinForm.addEventListener('submit', submitCheckin);
         resetBtn.addEventListener('click', resetForm);
-
-        // Event Listener - Botão Imprimir
         printBtn.addEventListener('click', printQRCode);
 
         /**
-         * Gera QR Code usando API externa (goqr.me)
-         * Mais rápido e confiável que bibliotecas JavaScript
+         * Gera URL do QR Code via API externa
          */
-        function generateQRCodeImage(text, size = 250) {
-            // Usar Google Charts API que é muito confiável
-            const encodedText = encodeURIComponent(text);
-            return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedText}`;
+        function getQRCodeURL(text) {
+            const encoded = encodeURIComponent(text);
+            return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encoded}`;
         }
 
         /**
-         * Submete os dados do check-in para o backend
+         * Submete dados para backend
          */
-        async function submitCheckin() {
+        async function submitCheckin(e) {
+            e.preventDefault();
+            
             try {
-                // Mostrar indicador de carregamento
                 loadingIndicator.classList.remove('hidden');
                 errorMessage.classList.add('hidden');
 
-                // Coletar dados do formulário
                 const formData = {
                     nome: document.getElementById('nome').value.trim(),
                     documento: document.getElementById('documento').value.trim(),
@@ -213,71 +201,54 @@
                     dataNascimento: document.getElementById('dataNascimento').value.trim()
                 };
 
-                // Validação básica
                 if (!formData.nome || !formData.documento || !formData.celular || !formData.dataNascimento) {
                     throw new Error('Por favor, preencha todos os campos');
                 }
 
-                // Fazer requisição POST para o backend
                 const response = await fetch(`${API_BASE}/api/checkin`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Erro ao processar check-in: ${response.statusText}`);
+                    throw new Error('Erro ao processar check-in');
                 }
 
                 const result = await response.json();
 
                 if (!result.id) {
-                    throw new Error('Erro ao gerar ID de check-in');
+                    throw new Error('ID não gerado');
                 }
 
-                // Exibir sucesso
                 displaySuccess(result.id, formData);
 
             } catch (error) {
-                // Exibir erro
                 showError(error.message);
-                console.error('❌ Erro ao processar:', error);
             } finally {
-                // Ocultar indicador de carregamento
                 loadingIndicator.classList.add('hidden');
             }
         }
 
         /**
-         * Exibe a seção de sucesso com QR Code
+         * Exibe tela de sucesso com QR Code
          */
         function displaySuccess(id, formData) {
-            try {
-                // Preencher dados confirmados
-                document.getElementById('confirmNome').textContent = formData.nome;
-                document.getElementById('confirmDocumento').textContent = formData.documento;
-                document.getElementById('confirmCelular').textContent = formData.celular;
-                document.getElementById('confirmData').textContent = new Date(formData.dataNascimento).toLocaleDateString('pt-BR');
-                document.getElementById('referenceId').textContent = id;
+            document.getElementById('confirmNome').textContent = formData.nome;
+            document.getElementById('confirmDocumento').textContent = formData.documento;
+            document.getElementById('confirmCelular').textContent = formData.celular;
+            document.getElementById('confirmData').textContent = new Date(formData.dataNascimento).toLocaleDateString('pt-BR');
+            document.getElementById('referenceId').textContent = id;
 
-                // Gerar URL do QR Code
-                const qrCodeUrl = generateQRCodeImage(id, 250);
-                qrcodeImage.src = qrCodeUrl;
+            // Gerar QR Code
+            const qrUrl = getQRCodeURL(id);
+            qrCodeImage.src = qrUrl;
+            qrCodeImage.onerror = () => {
+                showError('Erro ao carregar QR Code. Tente novamente.');
+            };
 
-                console.log('✓ QR Code gerado com sucesso');
-                console.log('✓ ID:', id);
-                console.log('✓ URL:', qrCodeUrl);
-
-                // Ocultar formulário e exibir sucesso
-                formSection.classList.add('hidden');
-                successSection.classList.remove('hidden');
-
-            } catch (error) {
-                console.error('❌ Erro ao exibir sucesso:', error);
-                showError('Erro ao gerar QR Code: ' + error.message);
-            }
+            formSection.classList.add('hidden');
+            successSection.classList.remove('hidden');
         }
 
         /**
@@ -286,11 +257,10 @@
         function showError(message) {
             errorText.textContent = message;
             errorMessage.classList.remove('hidden');
-            console.error('❌', message);
         }
 
         /**
-         * Reseta o formulário para um novo check-in
+         * Reseta formulário
          */
         function resetForm() {
             checkinForm.reset();
@@ -300,12 +270,12 @@
         }
 
         /**
-         * Imprime o QR Code
+         * Imprime QR Code
          */
         function printQRCode() {
             try {
-                const printWindow = window.open('', '', 'height=400,width=600');
-                const qrImageSrc = qrcodeImage.src;
+                const printWindow = window.open('', '', 'height=600,width=800');
+                const qrSrc = qrCodeImage.src;
                 const id = document.getElementById('referenceId').textContent;
 
                 printWindow.document.write(`
@@ -314,49 +284,18 @@
                     <head>
                         <title>QR Code - Pré-Check-in</title>
                         <style>
-                            body {
-                                font-family: Arial, sans-serif;
-                                display: flex;
-                                flex-direction: column;
-                                align-items: center;
-                                justify-content: center;
-                                padding: 20px;
-                                background: white;
-                            }
-                            .container {
-                                text-align: center;
-                                max-width: 600px;
-                            }
-                            h1 {
-                                margin-bottom: 20px;
-                                font-size: 28px;
-                                color: #333;
-                            }
-                            img {
-                                margin: 20px 0;
-                                border: 2px solid #000;
-                                padding: 10px;
-                                background: white;
-                                max-width: 300px;
-                            }
-                            .id {
-                                font-weight: bold;
-                                font-size: 18px;
-                                margin-top: 20px;
-                                font-family: monospace;
-                                color: #1f2937;
-                            }
-                            .subtitle {
-                                font-size: 14px;
-                                color: #666;
-                                margin-top: 10px;
-                            }
+                            body { font-family: Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: white; }
+                            .container { text-align: center; padding: 40px; }
+                            h1 { font-size: 32px; margin-bottom: 30px; color: #1f2937; }
+                            img { max-width: 400px; border: 3px solid #000; padding: 15px; background: white; }
+                            .id { font-size: 20px; font-weight: bold; font-family: monospace; margin-top: 30px; color: #1f2937; }
+                            .subtitle { font-size: 14px; color: #666; margin-top: 15px; }
                         </style>
                     </head>
                     <body>
                         <div class="container">
-                            <h1>Pré-Check-in Hoteleiro</h1>
-                            <img src="${qrImageSrc}" alt="QR Code">
+                            <h1>🏨 Pré-Check-in Hoteleiro</h1>
+                            <img src="${qrSrc}" alt="QR Code">
                             <p class="id">ID: ${id}</p>
                             <p class="subtitle">Apresente este código na recepção</p>
                         </div>
@@ -366,17 +305,13 @@
                 printWindow.document.close();
                 printWindow.focus();
                 setTimeout(() => printWindow.print(), 500);
-                console.log('✓ Impressão iniciada');
             } catch (error) {
-                console.error('❌ Erro ao imprimir:', error);
-                showError('Erro ao imprimir QR Code');
+                showError('Erro ao imprimir');
             }
         }
 
-        // Verificações de inicialização
-        console.log('✓ Frontend iniciado');
-        console.log('✓ API Base URL:', API_BASE);
-        console.log('✓ Pronto para usar');
+        console.log('✅ Aplicação carregada com sucesso');
+        console.log('📍 API:', API_BASE);
     </script>
 </body>
 </html>
